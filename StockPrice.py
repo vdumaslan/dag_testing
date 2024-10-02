@@ -14,8 +14,7 @@ def return_snowflake_conn():
   hook = SnowflakeHook(snowflake_conn_id='snowflake_conn')
     
   # Execute the query and fetch results
-  conn = hook.get_conn()
-  return conn.cursor()
+  return hook.get_conn()
 
 @task
 def extract(url):
@@ -35,7 +34,10 @@ def transform(data):
   return results[:90]
 
 @task
-def load(cur, lines, target_table, symbol):
+def load(lines, target_table, symbol):
+  conn = return_snowflake_conn()
+  cur = conn.cursor()
+
   try:
     cur.execute("BEGIN;")
     cur.execute(f"""
@@ -57,7 +59,7 @@ def load(cur, lines, target_table, symbol):
       close = r["4. close"]
       volume = r["5. volume"]
       date = r['date']
-      insert_sql = f"INSERT INTO {target_table} (date, open, high, low, close, volume, symbol) VALUES ('{date}', {open}, {high}, {low}, {close}, {volume}, {symbol})"
+      insert_sql = f"INSERT INTO {target_table} (date, open, high, low, close, volume, symbol) VALUES ('{date}', {open}, {high}, {low}, {close}, {volume}, '{symbol}')"
       cur.execute(insert_sql)
     cur.execute("COMMIT;")
 
@@ -65,6 +67,10 @@ def load(cur, lines, target_table, symbol):
     cur.execute("ROLLBACK;")
     print(e)
     raise e
+  
+  finally:
+    cur.close()
+    conn.close()
 
 with DAG(
   dag_id = 'StockPrice',
@@ -77,8 +83,8 @@ with DAG(
   vantage_api_key = Variable.get("vantage_api_key")
   symbol = "SPOT"
   url = f'https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={symbol}&apikey={vantage_api_key}'
-  cur = return_snowflake_conn()
 
-data = extract(url)
-lines = transform(data)
-load(cur, lines, target_table, symbol)
+  #Tasks
+  data = extract(url)
+  lines = transform(data)
+  load(lines, target_table, symbol)
