@@ -35,7 +35,7 @@ def load(data):
   return results[:90]
 
 @task
-def transform(cur, lines, target_table):
+def transform(cur, lines, target_table, symbol):
   try:
     cur.execute("BEGIN;")
     cur.execute(f"""
