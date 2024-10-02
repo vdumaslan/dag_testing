@@ -24,7 +24,7 @@ def extract(url):
   return (data)
 
 @task
-def load(data):
+def transform(data):
   results = []   # empyt list for now to hold the 90 days of stock info (open, high, low, close, volume)
 
   for d in data["Time Series (Daily)"]:   # here d is a date: "YYYY-MM-DD"
@@ -35,7 +35,7 @@ def load(data):
   return results[:90]
 
 @task
-def transform(cur, lines, target_table, symbol):
+def load(cur, lines, target_table, symbol):
   try:
     cur.execute("BEGIN;")
     cur.execute(f"""
